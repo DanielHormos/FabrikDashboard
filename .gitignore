@@ -1,0 +1,7 @@
+bin/
+obj/
+publish/
+fabrik.zip
+.env
+*.user
+appsettings.Development.json
