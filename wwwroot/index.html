@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Factory Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', sans-serif; background: #0f1117; color: #e0e0e0; }
+  header { background: #1a1d2e; padding: 20px 40px; border-bottom: 2px solid #2563eb; display: flex; align-items: center; justify-content: space-between; }
+  header h1 { font-size: 1.4rem; color: #fff; }
+  .factory-selector { display: flex; align-items: center; gap: 12px; }
+  .factory-selector label { color: #8b8fa8; font-size: 0.9rem; }
+  select { background: #2a2d3e; color: #fff; border: 1px solid #3a3d4e; padding: 8px 16px; border-radius: 8px; font-size: 0.95rem; cursor: pointer; outline: none; }
+  select:hover { border-color: #2563eb; }
+  .overview { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; padding: 24px 40px 0; }
+  .overview-card { background: #1a1d2e; border-radius: 12px; padding: 20px; border: 1px solid #2a2d3e; cursor: pointer; transition: border-color 0.2s; }
+  .overview-card:hover { border-color: #2563eb; }
+  .overview-card.active { border-color: #2563eb; background: #1e2540; }
+  .overview-card h3 { font-size: 1rem; color: #fff; margin-bottom: 4px; }
+  .overview-card p { font-size: 0.8rem; color: #8b8fa8; margin-bottom: 12px; }
+  .overview-card .stats { display: flex; gap: 16px; }
+  .overview-card .stat { text-align: center; }
+  .overview-card .stat .num { font-size: 1.4rem; font-weight: 700; }
+  .overview-card .stat .lbl { font-size: 0.7rem; color: #8b8fa8; text-transform: uppercase; }
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; padding: 16px 40px; }
+  .card { background: #1a1d2e; border-radius: 12px; padding: 20px; border: 1px solid #2a2d3e; }
+  .card h3 { font-size: 0.8rem; color: #8b8fa8; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
+  .card .value { font-size: 2rem; font-weight: 700; color: #fff; }
+  .card .sub { font-size: 0.8rem; color: #8b8fa8; margin-top: 4px; }
+  .section { padding: 0 40px 24px; }
+  .section h2 { font-size: 1rem; margin-bottom: 12px; color: #fff; padding-top: 8px; }
+  .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  .chart-card { background: #1a1d2e; border-radius: 12px; padding: 20px; border: 1px solid #2a2d3e; }
+  .chart-card h3 { font-size: 0.85rem; color: #8b8fa8; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; padding: 10px 16px; font-size: 0.75rem; color: #8b8fa8; text-transform: uppercase; border-bottom: 1px solid #2a2d3e; }
+  td { padding: 11px 16px; font-size: 0.88rem; border-bottom: 1px solid #1e2130; }
+  tr:hover td { background: #1e2235; }
+  .badge { padding: 3px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 600; }
+  .OK { background: #14532d; color: #4ade80; }
+  .WARNING { background: #713f12; color: #fbbf24; }
+  .ALARM, .CRITICAL { background: #7f1d1d; color: #f87171; }
+  .divider { border: none; border-top: 1px solid #2a2d3e; margin: 0 40px 20px; }
+  .ack-btn { background: #2563eb; color: #fff; border: none; padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 0.78rem; }
+  .ack-btn:hover { background: #1d4ed8; }
+  .ack-btn:disabled { background: #374151; color: #6b7280; cursor: not-allowed; }
+  .toast { position: fixed; bottom: 24px; right: 24px; background: #14532d; color: #4ade80; padding: 12px 20px; border-radius: 8px; font-size: 0.9rem; display: none; z-index: 999; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🏭 Factory Operations Dashboard</h1>
+  <div class="factory-selector">
+    <label>Select Factory</label>
+    <select id="factorySelect" onchange="selectFactory(this.value)">
+      <option value="">Loading...</option>
+    </select>
+  </div>
+</header>
+ 
+<div class="overview" id="overviewCards"></div>
+<hr class="divider" style="margin-top:20px">
+ 
+<div id="factoryView" style="display:none">
+  <div class="kpis">
+    <div class="card"><h3>Machines</h3><div class="value" id="kpi-machines">–</div></div>
+    <div class="card"><h3>Active Alarms</h3><div class="value" id="kpi-alarms" style="color:#f87171">–</div></div>
+    <div class="card"><h3>Units Produced</h3><div class="value" id="kpi-units">–</div></div>
+    <div class="card"><h3>Efficiency</h3><div class="value" id="kpi-efficiency">–</div><div class="sub">runtime vs total</div></div>
+  </div>
+ 
+  <div class="section">
+    <div class="charts">
+      <div class="chart-card"><h3>Sensor Values</h3><canvas id="sensorChart" height="160"></canvas></div>
+      <div class="chart-card"><h3>Production – Produced vs Rejected</h3><canvas id="productionChart" height="160"></canvas></div>
+    </div>
+ 
+    <h2>⚠️ Active Alarms</h2>
+    <div class="card" style="margin-bottom:20px">
+      <table>
+        <thead><tr><th>Machine</th><th>Type</th><th>Severity</th><th>Message</th><th>Time</th><th>Action</th></tr></thead>
+        <tbody id="alarmTable"></tbody>
+      </table>
+    </div>
+ 
+    <h2>📡 Latest Sensor Data</h2>
+    <div class="card" style="margin-bottom:40px">
+      <table>
+        <thead><tr><th>Machine</th><th>Sensor</th><th>Value</th><th>Unit</th><th>Status</th><th>Time</th></tr></thead>
+        <tbody id="sensorTable"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+ 
+<div class="toast" id="toast">✓ Alarm acknowledged</div>
+ 
+<script>
+let sensorChart, productionChart;
+let currentFactory = null;
+ 
+async function init() {
+  const [factories, overview] = await Promise.all([
+    fetch('/api/fabrik/factories').then(r => r.json()),
+    fetch('/api/fabrik/overview').then(r => r.json())
+  ]);
+ 
+  const sel = document.getElementById('factorySelect');
+  sel.innerHTML = '<option value="">– Select a factory –</option>';
+  factories.forEach(f => {
+    sel.innerHTML += `<option value="${f.id}">${f.name} – ${f.location}</option>`;
+  });
+ 
+  document.getElementById('overviewCards').innerHTML = overview.map(f => `
+    <div class="overview-card" id="card-${f.id}" onclick="selectFactory(${f.id})">
+      <h3>🏭 ${f.name}</h3>
+      <p>${f.location}</p>
+      <div class="stats">
+        <div class="stat"><div class="num">${f.machine_count}</div><div class="lbl">Machines</div></div>
+        <div class="stat"><div class="num" style="color:${f.active_alarms > 0 ? '#f87171' : '#4ade80'}">${f.active_alarms}</div><div class="lbl">Alarms</div></div>
+        <div class="stat"><div class="num">${f.total_units ?? 0}</div><div class="lbl">Units</div></div>
+      </div>
+    </div>`).join('');
+}
+ 
+async function selectFactory(id) {
+  if (!id) return;
+  currentFactory = id;
+  document.getElementById('factorySelect').value = id;
+  document.querySelectorAll('.overview-card').forEach(c => c.classList.remove('active'));
+  const card = document.getElementById('card-' + id);
+  if (card) card.classList.add('active');
+  document.getElementById('factoryView').style.display = 'block';
+  await loadFactory(id);
+}
+ 
+async function acknowledgeAlarm(alarmId, btn) {
+  btn.disabled = true;
+  btn.textContent = '...';
+  try {
+    await fetch(`/api/fabrik/alarms/${alarmId}/acknowledge`, { method: 'POST' });
+    const toast = document.getElementById('toast');
+    toast.style.display = 'block';
+    setTimeout(() => toast.style.display = 'none', 2500);
+    await loadFactory(currentFactory);
+  } catch {
+    btn.disabled = false;
+    btn.textContent = 'Acknowledge';
+  }
+}
+ 
+async function loadFactory(id) {
+  const [sensors, alarms, production] = await Promise.all([
+    fetch(`/api/fabrik/sensors?factoryId=${id}`).then(r => r.json()),
+    fetch(`/api/fabrik/alarms?factoryId=${id}`).then(r => r.json()),
+    fetch(`/api/fabrik/production?factoryId=${id}`).then(r => r.json())
+  ]);
+ 
+  const machines = [...new Set(sensors.map(s => s.machine))];
+  document.getElementById('kpi-machines').textContent = machines.length;
+  document.getElementById('kpi-alarms').textContent = alarms.length;
+  const totalUnits = production.reduce((s, p) => s + p.units_produced, 0);
+  document.getElementById('kpi-units').textContent = totalUnits.toLocaleString();
+  const totalRuntime = production.reduce((s, p) => s + p.runtime_min, 0);
+  const totalTime = production.reduce((s, p) => s + p.runtime_min + p.downtime_min, 0);
+  document.getElementById('kpi-efficiency').textContent = totalTime > 0 ? Math.round(totalRuntime / totalTime * 100) + '%' : '–';
+ 
+  document.getElementById('sensorTable').innerHTML = sensors.map(s => `
+    <tr><td>${s.machine}</td><td>${s.sensor_type}</td><td><strong>${s.value}</strong></td>
+    <td>${s.unit}</td><td><span class="badge ${s.status}">${s.status}</span></td>
+    <td>${new Date(s.recorded_at).toLocaleString()}</td></tr>`).join('') ||
+    '<tr><td colspan="6" style="color:#8b8fa8;text-align:center;padding:20px">No data</td></tr>';
+ 
+  document.getElementById('alarmTable').innerHTML = alarms.map(a => `
+    <tr>
+      <td>${a.machine}</td>
+      <td>${a.alarm_type}</td>
+      <td><span class="badge ${a.severity}">${a.severity}</span></td>
+      <td>${a.message}</td>
+      <td>${new Date(a.created_at).toLocaleString()}</td>
+      <td><button class="ack-btn" onclick="acknowledgeAlarm(${a.id}, this)">Acknowledge</button></td>
+    </tr>`).join('') ||
+    '<tr><td colspan="6" style="color:#4ade80;text-align:center;padding:20px">✓ No active alarms</td></tr>';
+ 
+  if (sensorChart) sensorChart.destroy();
+  if (productionChart) productionChart.destroy();
+ 
+  sensorChart = new Chart(document.getElementById('sensorChart'), {
+    type: 'bar',
+    data: {
+      labels: sensors.map(s => s.machine + ' ' + s.sensor_type),
+      datasets: [{ label: 'Value', data: sensors.map(s => s.value),
+        backgroundColor: sensors.map(s => s.status === 'OK' ? '#2563eb' : s.status === 'WARNING' ? '#f59e0b' : '#ef4444'),
+        borderRadius: 6 }]
+    },
+    options: { plugins: { legend: { display: false } }, scales: {
+      x: { ticks: { color: '#8b8fa8', maxRotation: 45, font: { size: 10 } } },
+      y: { ticks: { color: '#8b8fa8' }, grid: { color: '#2a2d3e' } } } }
+  });
+ 
+  productionChart = new Chart(document.getElementById('productionChart'), {
+    type: 'bar',
+    data: {
+      labels: production.map(p => p.machine),
+      datasets: [
+        { label: 'Produced', data: production.map(p => p.units_produced), backgroundColor: '#2563eb', borderRadius: 6 },
+        { label: 'Rejected', data: production.map(p => p.units_rejected), backgroundColor: '#ef4444', borderRadius: 6 }
+      ]
+    },
+    options: { scales: {
+      x: { ticks: { color: '#8b8fa8' } },
+      y: { ticks: { color: '#8b8fa8' }, grid: { color: '#2a2d3e' } } },
+      plugins: { legend: { labels: { color: '#e0e0e0' } } } }
+  });
+}
+ 
+init();
+setInterval(() => { if (currentFactory) loadFactory(currentFactory); }, 15000);
+</script>
+</body>
+</html>
