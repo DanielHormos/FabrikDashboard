@@ -8,4 +8,7 @@
     <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.1" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.0" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="FabrikFunction/**" />
+  </ItemGroup>
 </Project>
