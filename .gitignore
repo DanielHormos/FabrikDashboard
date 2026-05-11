@@ -5,3 +5,5 @@ fabrik.zip
 .env
 *.user
 appsettings.Development.json
+FabrikFunction/bin/
+FabrikFunction/obj/
