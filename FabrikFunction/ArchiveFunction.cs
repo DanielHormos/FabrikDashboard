@@ -7,7 +7,7 @@ using System.Text.Json;
 public class ArchiveFunction
 {
     private readonly ILogger _logger;
-    private readonly string _sqlConn = "Server=sql-fabrikdata.database.windows.net;Database=db-fabrikdata;User Id=sqladmin;Password=Fabrik123!;Encrypt=True;";
+    private readonly string _sqlConn = SqlConfig.ConnectionString;
     private readonly string _blobConn = Environment.GetEnvironmentVariable("AzureWebJobsStorage") ?? "";
 
     public ArchiveFunction(ILoggerFactory loggerFactory)

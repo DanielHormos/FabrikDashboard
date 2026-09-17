@@ -6,7 +6,7 @@ using System.Text.Json;
 public class IoTHubTrigger
 {
     private readonly ILogger _logger;
-    private readonly string _conn = $"Server=sql-fabrikdata.database.windows.net;Database=db-fabrikdata;User Id=sqladmin;Password={Environment.GetEnvironmentVariable("SqlPassword")};Encrypt=True;";
+    private readonly string _conn = SqlConfig.ConnectionString;
     public IoTHubTrigger(ILoggerFactory loggerFactory)
     {
         _logger = loggerFactory.CreateLogger<IoTHubTrigger>();

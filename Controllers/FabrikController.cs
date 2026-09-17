@@ -5,7 +5,17 @@ using Microsoft.Data.SqlClient;
 [Route("api/[controller]")]
 public class FabrikController : ControllerBase
 {
-    private readonly string _conn = $"Server=sql-fabrikdata.database.windows.net;Database=db-fabrikdata;User Id=sqladmin;Password={Environment.GetEnvironmentVariable("SqlPassword") ?? "Fabrik123!"};Encrypt=True;";
+    // Lösenordet kommer från app setting "SqlPassword" (Key Vault-referens via Managed Identity).
+    // Ingen fallback: saknas det ska appen faila tydligt, inte tyst använda ett gammalt lösenord.
+    private readonly string _conn = new SqlConnectionStringBuilder
+    {
+        DataSource = "sql-fabrikdata.database.windows.net",
+        InitialCatalog = "db-fabrikdata",
+        UserID = "sqladmin",
+        Password = Environment.GetEnvironmentVariable("SqlPassword")
+            ?? throw new InvalidOperationException("App setting 'SqlPassword' saknas."),
+        Encrypt = true
+    }.ConnectionString;
  
     private List<Dictionary<string, object>> Query(string sql, SqlParameter[]? parameters = null)
     {

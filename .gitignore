@@ -7,3 +7,4 @@ fabrik.zip
 appsettings.Development.json
 FabrikFunction/bin/
 FabrikFunction/obj/
+local.settings.json
